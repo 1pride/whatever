@@ -36,7 +36,7 @@ func main() {
 		}
 
 		switch i.ApplicationCommandData().Name {
-		case "voice-limit":
+		case "voice-limite":
 			cmd.VoiceLimitHandler(s, i)
 		case "sala":
 			cmd.StartVoiceHandler(s, i)

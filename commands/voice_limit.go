@@ -2,8 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func VoiceLimitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -45,17 +46,29 @@ func VoiceLimitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	// Check permissions
-	perms, err := s.State.UserChannelPermissions(i.Member.User.ID, channel.ID)
-	if err != nil {
-		respondWithError(s, i, "Error checking permissions")
-		return
-	}
+	// Simplified permission checking for temporary voice channels
+	// For channels created by the sala command, allow any user in the channel to modify the limit
 
-	// Allow both channel owners and users to manage channel permission
-	if channel.OwnerID != user.ID && perms&discordgo.PermissionManageChannels == 0 {
-		respondWithError(s, i, "You must be the owner or have manage channel permissions to change its limit")
-		return
+	// Check if this is a temporary channel (in the same category as sala command)
+	isTempChannel := channel.ParentID == "1380359231336611841"
+
+	// If it's not a temporary channel, check for proper permissions
+	if !isTempChannel {
+		// Try to check permissions, but don't fail if we can't
+		perms, err := s.State.UserChannelPermissions(i.Member.User.ID, channel.ID)
+		if err == nil {
+			hasManagePerms := perms&discordgo.PermissionManageChannels != 0
+			isOwner := channel.OwnerID == user.ID
+
+			if !hasManagePerms && !isOwner {
+				respondWithError(s, i, "You must be the owner or have manage channel permissions to change its limit")
+				return
+			}
+		} else {
+			// If we can't check permissions, assume the user doesn't have them
+			respondWithError(s, i, "Unable to verify permissions. Please ensure you have manage channel permissions.")
+			return
+		}
 	}
 
 	// Get command options directly since it's required
