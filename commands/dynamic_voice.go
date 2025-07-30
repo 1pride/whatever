@@ -3,9 +3,16 @@ package commands
 import (
 	"bot/config"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+)
+
+// Global map to track channel ownership
+var (
+	channelOwners = make(map[string]string) // channelID -> userID
+	ownersMutex   sync.RWMutex
 )
 
 func StartVoiceHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -60,6 +67,11 @@ func StartVoiceHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
+	// Store the channel owner
+	ownersMutex.Lock()
+	channelOwners[channel.ID] = i.Member.User.ID
+	ownersMutex.Unlock()
+
 	content := fmt.Sprintf("✅ Temp voice channel created: **%s** (limit: %d users)\n\n➡️ https://discord.com/channels/%s/%s", channel.Name, userLimit, i.GuildID, channel.ID)
 	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &content,
@@ -104,6 +116,10 @@ func monitorAndDeleteWhenEmpty(s *discordgo.Session, guildID, channelID string, 
 					if err != nil {
 						fmt.Println("Error deleting empty voice channel:", err)
 					} else {
+						// Clean up channel owner tracking
+						ownersMutex.Lock()
+						delete(channelOwners, channelID)
+						ownersMutex.Unlock()
 						fmt.Println("✅ Temp voice channel deleted due to sustained inactivity.")
 					}
 					return
@@ -113,4 +129,13 @@ func monitorAndDeleteWhenEmpty(s *discordgo.Session, guildID, channelID string, 
 			time.Sleep(checkInterval)
 		}
 	}()
+}
+
+// IsChannelOwner checks if a user is the owner of a temporary voice channel
+func IsChannelOwner(channelID, userID string) bool {
+	ownersMutex.RLock()
+	defer ownersMutex.RUnlock()
+
+	ownerID, exists := channelOwners[channelID]
+	return exists && ownerID == userID
 }

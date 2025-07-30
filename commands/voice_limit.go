@@ -53,11 +53,32 @@ func VoiceLimitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// Check if this is a temporary channel (in the same category as sala command)
 	isTempChannel := channel.ParentID == config.CategoryID
 
-	// If it's not a temporary channel, check for proper permissions
-	if !isTempChannel {
+	// Debug logging
+	log.Printf("Channel ParentID: %s, Config CategoryID: %s, IsTempChannel: %v", channel.ParentID, config.CategoryID, isTempChannel)
+
+	// For temporary channels, only allow the creator to modify the limit
+	if isTempChannel {
+		if !IsChannelOwner(channel.ID, user.ID) {
+			respondWithError(s, i, "Only the creator of this temporary voice channel can change its limit.")
+			return
+		}
+	} else {
+		// If it's not a temporary channel, check for proper permissions
 		// Try to check permissions, but don't fail if we can't
 		perms, err := s.State.UserChannelPermissions(i.Member.User.ID, channel.ID)
-		if err == nil {
+		if err != nil {
+			// Log the error for debugging
+			log.Printf("Error checking permissions for user %s in channel %s: %v", user.ID, channel.ID, err)
+
+			// For non-temporary channels, check if user is the channel owner
+			if channel.OwnerID == user.ID {
+				// User is the channel owner, allow it
+			} else {
+				// If we can't check permissions and user is not owner, deny access
+				respondWithError(s, i, "Unable to verify permissions. Please ensure you have manage channel permissions.")
+				return
+			}
+		} else {
 			hasManagePerms := perms&discordgo.PermissionManageChannels != 0
 			isOwner := channel.OwnerID == user.ID
 
@@ -65,10 +86,6 @@ func VoiceLimitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				respondWithError(s, i, "You must be the owner or have manage channel permissions to change its limit")
 				return
 			}
-		} else {
-			// If we can't check permissions, assume the user doesn't have them
-			respondWithError(s, i, "Unable to verify permissions. Please ensure you have manage channel permissions.")
-			return
 		}
 	}
 
