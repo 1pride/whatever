@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bot/config"
 	"fmt"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 func StartVoiceHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	userLimit := 10
 	channelName := "🔊 Temp VC" // default name
-	categoryID := "1380359231336611841"
+	categoryID := config.CategoryID
 
 	for _, option := range i.ApplicationCommandData().Options {
 		switch option.Name {

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bot/config"
 	"fmt"
 	"log"
 
@@ -50,7 +51,7 @@ func VoiceLimitHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	// For channels created by the sala command, allow any user in the channel to modify the limit
 
 	// Check if this is a temporary channel (in the same category as sala command)
-	isTempChannel := channel.ParentID == "1380359231336611841"
+	isTempChannel := channel.ParentID == config.CategoryID
 
 	// If it's not a temporary channel, check for proper permissions
 	if !isTempChannel {
